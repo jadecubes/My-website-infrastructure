@@ -1,0 +1,60 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: php/Dockerfile
+    container_name: ethostudio_app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ../ethostudio-backend:/var/www/html
+    networks:
+      - ethostudio
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:alpine
+    container_name: ethostudio_nginx
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - ../ethostudio-backend:/var/www/html
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - ethostudio
+    depends_on:
+      - app
+
+  mysql:
+    image: mysql:8.0
+    container_name: ethostudio_mysql
+    restart: unless-stopped
+    # No host port mapping: MySQL is reachable only on the internal
+    # `ethostudio` network. For one-off access use `docker compose exec mysql ...`.
+    expose:
+      - "3306"
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:?DB_DATABASE must be set}
+      MYSQL_USER: ${DB_USERNAME:?DB_USERNAME must be set}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD must be set}
+    volumes:
+      - ./data/database:/var/lib/mysql
+    networks:
+      - ethostudio
+    healthcheck:
+      # Reads password from MYSQL_PWD env so it never appears on the command
+      # line (ps / logs). `$$` escapes compose interpolation; the container
+      # already has MYSQL_ROOT_PASSWORD set via the `environment` block.
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysqladmin ping -h 127.0.0.1 -u root --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  ethostudio:
+    driver: bridge
