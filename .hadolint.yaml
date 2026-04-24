@@ -1,0 +1,8 @@
+ignored:
+  # DL3008 - "Pin versions in apt get install". Pinning apt package versions in
+  # a dev-container Dockerfile is high-maintenance and low-value — Debian
+  # stable already pins within a release, and we rebuild locally.
+  - DL3008
+  # DL3059 - "Multiple consecutive RUN instructions". We intentionally chain a
+  # single RUN with &&, which hadolint sometimes still flags across layers.
+  - DL3059
